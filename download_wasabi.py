@@ -15,8 +15,9 @@ import os
 
 # noinspection PyIncorrectDocstring
 class WasabiVictorTool:
-    def __init__(self, bucket_name='trades-data', end_point_url='https://s3.us-east-2.wasabisys.com',
-                 aws_arn='iam::100000052685:user/zhenning.li'):
+    def __init__(self, bucket_name= 'indices-data',
+        end_point_url= 'https://s3.us-east-2.wasabisys.com',
+        aws_arn= 'iam::100000052685:user/steve.moses'):
 
         self.mfa_token = input('Please enter your 6 digit MFA code:')
         self.bucket_name = bucket_name
@@ -121,6 +122,20 @@ class WasabiVictorTool:
         with open(download_to_file_dir, 'w') as f:
             for file in file_names:
                 f.write(file + '\n')
+                
+    def store_file_names_subfolder_v2(self, wasabi_subfolder_name, download_to_file_dir): #For index rebalancing script
+        try:
+            response = self.s3_cli.list_objects_v2(
+                Bucket=self.bucket_name,
+                Prefix=wasabi_subfolder_name
+            )
+            file_names = [obj['Key'] for obj in response['Contents']]
+            with open(download_to_file_dir, 'w') as f:
+                f.writelines("\n".join(file_names))
+            return True
+        except KeyError:
+            print(f"Could not find folder '{wasabi_subfolder_name}' : NaN values added")
+            return False
 
     def download_single_file(self, single_file_wasabi_dir, download_to_dir=None, file_type='csv.gz'):
         """
@@ -194,6 +209,7 @@ class WasabiVictorTool:
                                repeat(os.path.join(os.getcwd(), download_to_dir)),
                                repeat(file_type)),
                       total=len(all_files_wasabi_dir)))
+    
 
 
 if __name__ == '__main__':

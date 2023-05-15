@@ -36,36 +36,48 @@ def main_wasabi():
         for date in dates:
             wasabi_folder = f"{folder}/{date.year}/{date.strftime('%m')}/"
             temp_file_name = f'all_files_in_{wasabi_folder.split("/")[-1]}.txt'
-            tool.store_file_names_subfolder(wasabi_subfolder_name=wasabi_folder,
-                                            download_to_file_dir=temp_file_name)
+            success = tool.store_file_names_subfolder_v2(wasabi_subfolder_name=wasabi_folder,
+                                                      download_to_file_dir=temp_file_name)
+            if not success:
+                price = float('nan')
+                ticker_prices.append(price)
+                continue
 
-            file_to_download = f"{wasabi_folder}{ticker}_{type}_{date.strftime('%Y-%m-%d')}.csv.gz"
+            # Check if the desired file is in the list of files in the folder
+            with open(temp_file_name, 'r') as f:
+                file_list = f.readlines()
+            desired_file = f"{wasabi_folder}{ticker}_{type}_{date.strftime('%Y-%m-%d')}.csv.gz\n"
+
+            if desired_file not in file_list:
+                print(f"Error: File '{desired_file.strip()}' not found.")
+                price = float('nan')
+                ticker_prices.append(price)
+                os.remove(temp_file_name)
+                continue
+
             params_download = {
                 'download_to_dir': 'database_wasabi_mfa',
                 'file_type': 'csv.gz',
             }
-            tool.download_single_file(file_to_download, **params_download)
+            tool.download_single_file(desired_file.strip(), **params_download)
 
-            download_target_file_dir = os.path.join(path, f"{file_to_download[:-3]}")
+            download_target_file_dir = os.path.join(path, f"{desired_file.strip()[:-3]}")
             temp_df = pd.read_csv(download_target_file_dir, parse_dates=['intervalStart', 'intervalEnd'])
             temp_df['intervalEnd'] = temp_df['intervalEnd'].dt.strftime('%Y-%m-%d %H:%M:%S')
-
 
             matching_row = temp_df[temp_df['intervalEnd'] == date.strftime('%Y-%m-%d %H:%M:%S')].iloc[0]
             price = matching_row['price']
             ticker_prices.append(price)
 
-
-
-            #os.remove(download_target_file_dir)     # Uncomment to delete the downloaded CSV files and keep only the final output csv
+            # Uncomment to delete the downloaded CSV files and keep only the final output csv
+            # os.remove(download_target_file_dir)
 
             os.remove(temp_file_name)
 
-
         result_df = pd.concat([result_df, pd.DataFrame([ticker_prices], columns=result_df.columns)], ignore_index=True)
-
 
     result_df.to_csv(output_file, index=False)
 
 if __name__ == '__main__':
     main_wasabi()
+
